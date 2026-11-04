@@ -36,6 +36,18 @@ function readToken(cookie: string | undefined, header: string | undefined) {
   return null;
 }
 
+/** True when the request carries a valid admin session (used to preview drafts on public routes). */
+export function hasAdminSession(req: { cookies?: Record<string, string>; headers: { authorization?: string } }) {
+  const token = readToken(req.cookies?.[SESSION_COOKIE], req.headers.authorization);
+  if (!token) return false;
+  try {
+    jwt.verify(token, env.AUTH_SECRET);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Requires a valid admin session (cookie set by /api/auth/login, or a Bearer token). */
 export const requireAdmin: RequestHandler = (req, _res, next) => {
   const token = readToken(req.cookies?.[SESSION_COOKIE], req.headers.authorization);

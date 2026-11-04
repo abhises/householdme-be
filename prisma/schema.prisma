@@ -191,6 +191,7 @@ model Media {
   filename  String
   mimeType  String
   size      Int
+  alt       String   @default("")
   createdAt DateTime @default(now())
 }
 

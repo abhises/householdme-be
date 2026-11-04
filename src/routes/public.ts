@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { notFound, parseBody } from "../lib/http.js";
 import { getAllSettings, getSetting } from "../lib/settings.js";
 import { subscribeSchema } from "../schemas/content.js";
+import { hasAdminSession } from "../middleware/auth.js";
 import { z } from "zod";
 
 /**
@@ -68,8 +69,10 @@ publicRouter.get("/categories/:slug", async (req, res) => {
 });
 
 publicRouter.get("/guides/:slug", async (req, res) => {
+  // Signed-in admins can preview drafts (?preview=1 on the site)
+  const draftOk = req.query.preview === "1" && hasAdminSession(req);
   const guide = await prisma.guide.findFirst({
-    where: { slug: req.params.slug, ...published },
+    where: { slug: req.params.slug, ...(draftOk ? {} : published) },
     include: {
       category: { select: { slug: true, name: true } },
       author: true,
@@ -101,7 +104,8 @@ publicRouter.get("/products/:slug", async (req, res) => {
       },
     },
   });
-  if (!product || !product.guide.published) throw notFound("Product");
+  const draftOk = req.query.preview === "1" && hasAdminSession(req);
+  if (!product || (!product.guide.published && !draftOk)) throw notFound("Product");
   const site = await getSetting("site");
   const [reviewer, sameCat, otherCat] = await Promise.all([
     prisma.author.findUnique({ where: { slug: site.reviewerSlug }, ...authorCard }),

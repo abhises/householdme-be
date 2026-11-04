@@ -23,6 +23,8 @@ interface CrudOptions {
   searchFields?: string[];
   /** Extra where filters from query string, e.g. { guideId: "guideId" } */
   filters?: Record<string, string>;
+  /** Boolean filters from query string, e.g. { published: "published" } for ?published=true */
+  boolFilters?: Record<string, string>;
 }
 
 /**
@@ -49,6 +51,10 @@ export function crudRouter(opts: CrudOptions) {
     for (const [param, field] of Object.entries(opts.filters ?? {})) {
       const v = req.query[param];
       if (typeof v === "string" && v) where[field] = v;
+    }
+    for (const [param, field] of Object.entries(opts.boolFilters ?? {})) {
+      const v = req.query[param];
+      if (v === "true" || v === "false") where[field] = v === "true";
     }
     const [items, total] = await Promise.all([
       delegate.findMany({ where, include, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
