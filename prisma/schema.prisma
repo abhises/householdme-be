@@ -1,0 +1,202 @@
+// HouseholdMe content model.
+// Nested, list-shaped content (FAQ, changelog, comparison tables, ...) is kept in
+// Json columns; their shapes are documented in src/types/content.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String   @default("Admin")
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  intro     String   @default("")
+  sortOrder Int      @default(0)
+  guides    Guide[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Author {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  role      String   @default("")
+  short     String   @default("")
+  bio       String   @default("")
+  /// Sentence used in "Why you can trust us" on guides
+  trust     String   @default("")
+  imageUrl  String?
+  /// [{ value, label }]
+  facts     Json     @default("[]")
+  expertise String[] @default([])
+  /// [{ year, text }]
+  career    Json     @default("[]")
+  /// Shown on the editorial team pages
+  onTeam    Boolean  @default(true)
+  /// Shown in "Our testers" on the home page
+  isTester  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  guides    Guide[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Guide {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  seoTitle       String?
+  short          String
+  intro          String   @default("")
+  published      Boolean  @default(true)
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  authorId       String
+  author         Author   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  modelsTested   Int      @default(0)
+  testWeeks      Int      @default(0)
+  updatedLabel   String   @default("")
+  publishedLabel String   @default("")
+  photoNote      String   @default("")
+  coverImage     String?
+  heroImage      String?
+  testImage      String?
+  forWho         String   @default("")
+  howTested      String   @default("")
+  howCaption     String?
+  bought         String?
+  /// Score criteria, e.g. ["Suction", "Battery", ...]
+  criteria       String[] @default([])
+  /// Test results table: header row and body rows
+  tableHead      Json?
+  tableRows      Json?
+  tableNote      String?
+  /// [{ q, a }]
+  faq            Json     @default("[]")
+  sources        String[] @default([])
+  /// [{ date, text }]
+  changes        Json     @default("[]")
+  /// Long-form sections (summary, compare table, deep dives, ...). See GuideFull type.
+  full           Json?
+  sortOrder      Int      @default(0)
+  products       Product[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  guideId      String
+  guide        Guide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  /// 0 = our pick, 1 = budget pick, 2 = upgrade
+  rank         Int      @default(0)
+  label        String   @default("Our pick")
+  score        Float    @default(0)
+  price        Int      @default(0)
+  verdict      String   @default("")
+  pros         String[] @default([])
+  cons         String[] @default([])
+  images       String[] @default([])
+  subtitle     String?
+  verdictLong  String?
+  inUseSince   String?
+  purchase     String?
+  readTime     String?
+  designText   String?
+  videoUrl     String?
+  goodFor      String[] @default([])
+  notFor       String[] @default([])
+  sources      String[] @default([])
+  /// [{ label, value }]
+  subScores    Json     @default("[]")
+  /// [{ shop, price, url, note }]
+  shops        Json     @default("[]")
+  /// [{ month, price }]
+  priceHistory Json     @default("[]")
+  /// [{ label, value, average, pct, averagePct }]
+  results      Json     @default("[]")
+  /// [{ date, text }]
+  longTerm     Json     @default("[]")
+  /// [{ k, v }]
+  specs        Json     @default("[]")
+  /// [{ name, cells: string[] }]
+  compareRows  Json     @default("[]")
+  /// [{ who, q, a }]
+  questions    Json     @default("[]")
+  /// [{ q, a }]
+  faq          Json     @default("[]")
+  /// [{ date, text }]
+  changes      Json     @default("[]")
+  helpfulYes   Int      @default(0)
+  helpfulNo    Int      @default(0)
+  deals        Deal[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([guideId, rank])
+}
+
+model Deal {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  wasPrice  Int
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InfoPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  lead        String   @default("")
+  /// [{ heading, body }]
+  sections    Json     @default("[]")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String?
+  createdAt DateTime @default(now())
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  url       String
+  driver    String
+  filename  String
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+}
+
+/// Key/value site configuration (home page hero, trust facts, test method, ...)
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
