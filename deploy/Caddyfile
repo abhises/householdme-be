@@ -1,0 +1,22 @@
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# API and uploaded files go straight to the backend
+	@backend path /api/* /uploads/* /health
+	handle @backend {
+		request_body {
+			max_size 100MB
+		}
+		reverse_proxy be:4100
+	}
+
+	# Everything else is the Next.js site and admin panel
+	handle {
+		reverse_proxy fe:3100
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

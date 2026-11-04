@@ -1,0 +1,84 @@
+# Production stack for HouseholdMe. Lives on the server in /opt/householdme
+# (copied there by the backend's GitHub Actions workflow) next to a .env file.
+#
+#   caddy :80/:443  ->  /api/*, /uploads/*  ->  be:4100  ->  db:5432
+#                   ->  everything else     ->  fe:3100  (server-side fetches go to be:4100)
+
+name: householdme
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: householdme
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: householdme
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U householdme -d householdme"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Keep memory use low on a small server
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40"]
+
+  be:
+    image: ghcr.io/abhises/householdme-be:${BE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      DATABASE_URL: postgresql://householdme:${POSTGRES_PASSWORD}@db:5432/householdme?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@householdme.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      CORS_ORIGIN: ${SITE_URL:-http://localhost}
+      # Empty = store relative /uploads/... URLs (served through Caddy on the site's own domain)
+      PUBLIC_API_URL: ""
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      LOCAL_UPLOAD_DIR: /app/storage/uploads
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+    volumes:
+      - uploads:/app/storage/uploads
+    mem_limit: 300m
+
+  fe:
+    image: ghcr.io/abhises/householdme-fe:${FE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      API_URL: http://be:4100
+      PORT: 3100
+      HOSTNAME: 0.0.0.0
+    mem_limit: 350m
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # ":80" serves plain HTTP on the IP. Set to your domain (e.g. householdme.com) for automatic HTTPS.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

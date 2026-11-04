@@ -1,6 +1,6 @@
 import type { CookieOptions, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
-import { env, isProd } from "../config/env.js";
+import { cookieSecure, env } from "../config/env.js";
 import { HttpError } from "../lib/http.js";
 
 export const SESSION_COOKIE = "hm_admin";
@@ -25,7 +25,7 @@ export function signSession(s: AdminSession) {
 export const sessionCookieOptions: CookieOptions = {
   httpOnly: true,
   sameSite: "lax",
-  secure: isProd,
+  secure: cookieSecure,
   path: "/",
   maxAge: MAX_AGE_SECONDS * 1000,
 };

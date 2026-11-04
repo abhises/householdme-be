@@ -84,3 +84,45 @@ S3_FORCE_PATH_STYLE="false"                # "true" for MinIO
 Objects must be publicly readable through a bucket policy or CDN. Files uploaded before the switch keep their
 local URLs, so copy `storage/uploads/` to the bucket under the same keys and update the URLs if you migrate.
 To add another backend, implement `StorageDriver` in `src/storage/` and register it in `src/storage/index.ts`.
+
+## Deployment (CI/CD)
+
+Both apps run on one server with Docker Compose. Files: `deploy/docker-compose.yml`, `deploy/Caddyfile`,
+`deploy/server-setup.sh`, and `.github/workflows/deploy.yml` in each repo.
+
+```
+Internet → Caddy :80/:443 ─┬─ /api/*, /uploads/*, /health → be (Express) :4100 → db (Postgres)
+                           └─ everything else           → fe (Next.js) :3100
+```
+
+On every push to `main`, each repo's workflow:
+
+1. typechecks, lints and builds;
+2. builds a Docker image and pushes it to `ghcr.io/abhises/householdme-be` (or `-fe`), tagged `latest` and with the commit SHA;
+3. connects to the server over SSH, pulls the new image and restarts that service.
+
+The backend workflow also copies `docker-compose.yml` and the `Caddyfile` to `/opt/householdme`. Migrations run when
+the backend starts, and the design content is seeded once on the first deploy. Pull requests only run step 1.
+
+**One-time setup**
+
+1. Server: `bash deploy/server-setup.sh` installs Docker, adds swap and the firewall, and creates `/opt/householdme/.env`
+   with random secrets.
+2. Generate a deploy key and authorize it on the server.
+3. In both GitHub repos, under Settings → Secrets and variables → Actions, add `SSH_HOST`, `SSH_USER` and `SSH_KEY`
+   (the deploy private key). Optionally set the variable `SITE_URL` in the frontend repo.
+4. Push the backend first (it creates the stack), then the frontend.
+
+**Operations (on the server, in `/opt/householdme`)**
+
+```bash
+docker compose ps                     # status
+docker compose logs -f be fe caddy    # logs
+sudo grep ADMIN_ /opt/householdme/.env   # admin login
+docker compose exec db pg_dump -U householdme householdme > backup.sql   # database backup
+# Roll back: set BE_TAG=<commit sha> (or FE_TAG) in .env, then docker compose up -d
+```
+
+**Adding a domain:** point its DNS A record at the server, then in `.env` set `SITE_ADDRESS=example.com`,
+`SITE_URL=https://example.com` and `COOKIE_SECURE=true`, and run `docker compose up -d`. Caddy gets the HTTPS
+certificate automatically. Set the frontend repo variable `SITE_URL=https://example.com` and re-run its workflow.

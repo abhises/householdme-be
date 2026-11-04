@@ -8,6 +8,8 @@ const schema = z.object({
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 characters"),
   CORS_ORIGIN: z.string().default("http://localhost:3100"),
   PUBLIC_API_URL: z.string().default("http://localhost:4100"),
+  // "true" requires HTTPS for the admin cookie. Defaults to true in production; set "false" while serving plain HTTP.
+  COOKIE_SECURE: z.enum(["true", "false"]).optional(),
 
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   LOCAL_UPLOAD_DIR: z.string().default("./storage/uploads"),
@@ -33,4 +35,5 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
+export const cookieSecure = env.COOKIE_SECURE ? env.COOKIE_SECURE === "true" : isProd;
 export const corsOrigins = env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
