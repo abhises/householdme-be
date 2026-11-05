@@ -56,9 +56,18 @@ model Author {
   updatedAt DateTime @updatedAt
 }
 
+/// What kind of post a Guide row is (chosen when adding a new post)
+enum PostType {
+  BUYING_GUIDE
+  SINGLE_REVIEW
+  COMPARISON
+  INFO_ARTICLE
+}
+
 model Guide {
   id             String   @id @default(cuid())
   slug           String   @unique
+  type           PostType @default(BUYING_GUIDE)
   title          String
   seoTitle       String?
   short          String

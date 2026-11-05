@@ -93,7 +93,7 @@ adminRouter.use(
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     searchFields: ["title", "slug", "short"],
-    filters: { categoryId: "categoryId", authorId: "authorId" },
+    filters: { categoryId: "categoryId", authorId: "authorId", type: "type" },
     boolFilters: { published: "published" },
   }),
 );

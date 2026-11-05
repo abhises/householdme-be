@@ -38,8 +38,11 @@ export const authorSchema = z.object({
 const qa = z.array(z.object({ q: z.string(), a: z.string() })).default([]);
 const changes = z.array(z.object({ date: z.string(), text: z.string() })).default([]);
 
+export const POST_TYPES = ["BUYING_GUIDE", "SINGLE_REVIEW", "COMPARISON", "INFO_ARTICLE"] as const;
+
 export const guideSchema = z.object({
   slug,
+  type: z.enum(POST_TYPES).default("BUYING_GUIDE"),
   title: z.string().trim().min(1),
   seoTitle: optStr,
   short: z.string().trim().min(1),
