@@ -41,6 +41,9 @@ model Author {
   /// Sentence used in "Why you can trust us" on guides
   trust     String   @default("")
   imageUrl  String?
+  /// Social profile links shown on the author page and guide author box
+  linkedinUrl String?
+  youtubeUrl  String?
   /// [{ value, label }]
   facts     Json     @default("[]")
   expertise String[] @default([])

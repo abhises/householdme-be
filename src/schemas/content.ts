@@ -8,6 +8,12 @@ const slug = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers and dashes");
 const str = z.string().default("");
 const optStr = z.string().nullish().transform((v) => (v === "" ? null : (v ?? null)));
+const urlOpt = z
+  .string()
+  .trim()
+  .nullish()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || /^https?:\/\/\S+$/i.test(v), "Must be a full URL starting with http:// or https://");
 const strList = z.array(z.string()).default([]);
 const json = z.any();
 const jsonList = z.array(z.any()).default([]);
@@ -27,6 +33,8 @@ export const authorSchema = z.object({
   bio: str,
   trust: str,
   imageUrl: optStr,
+  linkedinUrl: urlOpt,
+  youtubeUrl: urlOpt,
   facts: z.array(z.object({ value: z.string(), label: z.string() })).default([]),
   expertise: strList,
   career: z.array(z.object({ year: z.string(), text: z.string() })).default([]),
