@@ -21,6 +21,7 @@ import { makeKey, storage } from "../../storage/index.js";
 import { authorSchema, categorySchema, dealSchema, guideSchema, infoPageSchema, productSchema } from "../../schemas/content.js";
 import { requireAdmin } from "../../middleware/auth.js";
 import { crudRouter } from "./crud.js";
+import { postContext, renderDoc, rerenderGuide, sectionsDocSchema } from "../../lib/sections/render.js";
 
 export const adminRouter = Router();
 
@@ -80,21 +81,65 @@ adminRouter.use(
   }),
 );
 
+const guideAdminInclude = {
+  category: { select: { id: true, name: true, slug: true } },
+  author: { select: { id: true, name: true, slug: true } },
+  products: { select: { id: true, name: true, slug: true, rank: true, label: true, score: true }, orderBy: { rank: "asc" as const } },
+};
+
+// ---- Section-based posts (BrasQ-style editor) ----
+const POST_TYPE_ENUM = z.enum(["BUYING_GUIDE", "SINGLE_REVIEW", "COMPARISON", "INFO_ARTICLE"]);
+
+/** Section types for the post editor's "Add section" list (built-ins are synced from code on startup). */
+adminRouter.get("/section-types", async (_req, res) => {
+  const types = await prisma.sectionType.findMany({ where: { scope: { in: ["any", "post"] } }, orderBy: [{ group: "asc" }, { name: "asc" }] });
+  res.json({ types });
+});
+
+/** Renders unsaved sections for the editor's live preview, using the post settings from the form. */
+adminRouter.post("/guides/preview", async (req, res) => {
+  const b = parseBody(
+    z.object({
+      sections: sectionsDocSchema,
+      type: POST_TYPE_ENUM.default("BUYING_GUIDE"),
+      slug: z.string().default("preview"),
+      title: z.string().default(""),
+      intro: z.string().default(""),
+      coverImage: z.string().nullish(),
+      heroImage: z.string().nullish(),
+      modelsTested: z.coerce.number().nullish(),
+      testWeeks: z.coerce.number().nullish(),
+      updatedLabel: z.string().nullish(),
+      publishedLabel: z.string().nullish(),
+      categoryId: z.string().nullish(),
+      authorId: z.string().nullish(),
+      guideId: z.string().nullish(),
+    }),
+    req.body,
+  );
+  const [category, author, products] = await Promise.all([
+    b.categoryId ? prisma.category.findUnique({ where: { id: b.categoryId } }) : null,
+    b.authorId ? prisma.author.findUnique({ where: { id: b.authorId } }) : null,
+    b.guideId ? prisma.product.findMany({ where: { guideId: b.guideId }, select: { name: true, label: true, rank: true } }) : [],
+  ]);
+  const { sections, ...fields } = b;
+  const html = await renderDoc(sections, await postContext({ ...fields, title: fields.title || "Untitled", category, author, products, updatedAt: new Date() }));
+  res.json({ html });
+});
+
 adminRouter.use(
   "/guides",
   crudRouter({
     name: "Guide",
     delegate: prisma.guide,
     schema: guideSchema,
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      author: { select: { id: true, name: true, slug: true } },
-      products: { select: { id: true, name: true, slug: true, rank: true, label: true, score: true }, orderBy: { rank: "asc" } },
-    },
+    include: guideAdminInclude,
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     searchFields: ["title", "slug", "short"],
     filters: { categoryId: "categoryId", authorId: "authorId", type: "type" },
     boolFilters: { published: "published" },
+    // section-based posts: render the stored HTML from the sections after every save
+    afterWrite: async (g) => ((await rerenderGuide(g.id)) ? prisma.guide.findUnique({ where: { id: g.id }, include: guideAdminInclude }) : g),
   }),
 );
 

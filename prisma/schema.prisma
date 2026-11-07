@@ -106,9 +106,51 @@ model Guide {
   /// Long-form sections (summary, compare table, deep dives, ...). See GuideFull type.
   full           Json?
   sortOrder      Int      @default(0)
+  /// Meta description; falls back to the intro
+  seoDescription String?
+  /// Raw JSON-LD (structured data) for this page. Section/HTML posts only.
+  jsonLd         String?
+  /// The page body for section/HTML posts, rendered as-is. Empty = the classic guide template is used.
+  html           String   @default("")
+  /// Extra CSS for this post only
+  css            String   @default("")
+  /// Section-based content: { layout: "toc" | "wide" | "raw", items: [{ id, type, data, hidden? }] }.
+  /// When set, `html` is rendered from it on save; when null the post is plain HTML (or the classic template).
+  sections       Json?
+  /// Sticky "our pick" bar shown while scrolling: { name, score, price, shop, url, image }
+  stickyBar      Json?
+  /// Show the newsletter popup on this post
+  newsletterPopup Boolean @default(false)
   products       Product[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+/// Reusable content blocks for section-based posts (built-in types are synced from code on startup)
+model SectionType {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  group       String   @default("Other")
+  description String   @default("")
+  /// [{ key, label, type, required?, help?, options?, fields? }]
+  fields      Json     @default("[]")
+  /// HTML with {{placeholders}}, {{#list}}…{{/list}} and {{^empty}}…{{/empty}}
+  template    String   @default("")
+  /// CSS for custom types; scoped to the section automatically. Built-in types use sections.css.
+  css         String   @default("")
+  /// Sample field values for previews
+  sample      Json     @default("{}")
+  /// Table-of-contents label, a template like "{{heading}}"; empty = not in the TOC
+  tocLabel    String   @default("")
+  /// "body" (main column), "top" (full width above the columns) or "bottom" (full width below)
+  placement   String   @default("body")
+  /// "any", "post" or "home"
+  scope       String   @default("any")
+  builtIn     Boolean  @default(false)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Product {
