@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sectionsDocSchema } from "../lib/sections/render.js";
 
 const slug = z
   .string()
@@ -79,6 +80,17 @@ export const guideSchema = z.object({
   changes,
   full: json.nullish(),
   sortOrder: z.coerce.number().int().default(0),
+  // Section / HTML posts (BrasQ-style editor)
+  seoDescription: optStr,
+  jsonLd: optStr,
+  html: str,
+  css: str,
+  sections: sectionsDocSchema.nullish().transform((v) => v ?? null),
+  stickyBar: z
+    .object({ name: z.string(), score: z.string().optional(), price: z.string().optional(), shop: z.string().optional(), url: z.string(), image: z.string().optional() })
+    .nullish()
+    .transform((v) => v ?? null),
+  newsletterPopup: z.boolean().default(false),
 });
 
 export const productSchema = z.object({

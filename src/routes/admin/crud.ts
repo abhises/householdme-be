@@ -25,6 +25,8 @@ interface CrudOptions {
   filters?: Record<string, string>;
   /** Boolean filters from query string, e.g. { published: "published" } for ?published=true */
   boolFilters?: Record<string, string>;
+  /** Runs after create/update; may return a reloaded item (e.g. after deriving stored fields) */
+  afterWrite?: (item: any) => Promise<any | void>;
 }
 
 /**
@@ -39,6 +41,7 @@ interface CrudOptions {
 export function crudRouter(opts: CrudOptions) {
   const r = Router();
   const { delegate, schema, include, orderBy = { createdAt: "desc" }, name } = opts;
+  const after = async (item: any) => (opts.afterWrite ? ((await opts.afterWrite(item)) ?? item) : item);
 
   r.get("/", async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -57,7 +60,8 @@ export function crudRouter(opts: CrudOptions) {
       if (v === "true" || v === "false") where[field] = v === "true";
     }
     const [items, total] = await Promise.all([
-      delegate.findMany({ where, include, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      // ?sort=updated lists the most recently edited first (admin post list, as in BrasQ)
+      delegate.findMany({ where, include, orderBy: req.query.sort === "updated" ? { updatedAt: "desc" } : orderBy, skip: (page - 1) * pageSize, take: pageSize }),
       delegate.count({ where }),
     ]);
     res.json({ items, total, page, pageSize });
@@ -71,19 +75,19 @@ export function crudRouter(opts: CrudOptions) {
 
   r.post("/", async (req, res) => {
     const data = parseBody(schema, req.body);
-    const item = await delegate.create({ data, include });
+    const item = await after(await delegate.create({ data, include }));
     res.status(201).json(item);
   });
 
   r.put("/:id", async (req, res) => {
     const data = parseBody(schema, req.body);
-    const item = await delegate.update({ where: { id: req.params.id }, data, include });
+    const item = await after(await delegate.update({ where: { id: req.params.id }, data, include }));
     res.json(item);
   });
 
   r.patch("/:id", async (req, res) => {
     const data = parseBody(schema.partial(), req.body);
-    const item = await delegate.update({ where: { id: req.params.id }, data, include });
+    const item = await after(await delegate.update({ where: { id: req.params.id }, data, include }));
     res.json(item);
   });
 
