@@ -178,6 +178,22 @@ publicRouter.get("/deals", async (_req, res) => {
   res.json({ deals, site });
 });
 
+// Every public URL slug, used by the site's sitemap.xml. Only published content is listed.
+publicRouter.get("/sitemap", async (_req, res) => {
+  const [categories, guides, products, authors, infoPages] = await Promise.all([
+    prisma.category.findMany({
+      where: { guides: { some: published } },
+      orderBy: { sortOrder: "asc" },
+      select: { slug: true, updatedAt: true },
+    }),
+    prisma.guide.findMany({ where: published, orderBy: { sortOrder: "asc" }, select: { slug: true, updatedAt: true } }),
+    prisma.product.findMany({ where: { guide: published }, orderBy: { rank: "asc" }, select: { slug: true, updatedAt: true } }),
+    prisma.author.findMany({ orderBy: { sortOrder: "asc" }, select: { slug: true, updatedAt: true } }),
+    prisma.infoPage.findMany({ orderBy: { sortOrder: "asc" }, select: { slug: true, updatedAt: true } }),
+  ]);
+  res.json({ categories, guides, products, authors, infoPages });
+});
+
 publicRouter.get("/search", async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const like = { contains: q, mode: "insensitive" as const };

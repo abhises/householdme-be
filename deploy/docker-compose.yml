@@ -59,6 +59,8 @@ services:
     restart: unless-stopped
     environment:
       API_URL: http://be:4100
+      # Public URL for robots.txt and sitemap.xml (read at request time)
+      SITE_URL: ${SITE_URL:-}
       PORT: 3100
       HOSTNAME: 0.0.0.0
     mem_limit: 350m
