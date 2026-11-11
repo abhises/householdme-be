@@ -28,7 +28,7 @@ export const BUILTINS: Builtin[] = [
       { key: 'lead', label: 'Intro', type: 'textarea', help: 'Leave empty to use the excerpt.' },
       { key: 'byline', label: 'Byline', type: 'text', default: 'Written by', placeholder: 'Tested and written by' },
       { key: 'parentName', label: 'Middle breadcrumb', type: 'text', placeholder: 'Robot vacuums', help: 'Optional extra breadcrumb between the category and this page.' },
-      { key: 'parentUrl', label: 'Middle breadcrumb link', type: 'link', placeholder: '/guide/robot-vacuums' },
+      { key: 'parentUrl', label: 'Middle breadcrumb link', type: 'link', placeholder: '/robot-vacuums' },
       { key: 'crumb', label: 'Last breadcrumb', type: 'text', help: 'Short name for the breadcrumb, e.g. "Stick vacuums". Defaults to the title.' },
       { key: 'extraLabel', label: 'Extra meta label', type: 'text', placeholder: 'Test period' },
       { key: 'extraValue', label: 'Extra meta value', type: 'text', placeholder: '6 weeks · 22 models' },

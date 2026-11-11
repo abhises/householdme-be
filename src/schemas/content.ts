@@ -49,8 +49,14 @@ const changes = z.array(z.object({ date: z.string(), text: z.string() })).defaul
 
 export const POST_TYPES = ["BUYING_GUIDE", "SINGLE_REVIEW", "COMPARISON", "INFO_ARTICLE"] as const;
 
+/** Top-level paths a post slug may not take, since posts live at /<slug> */
+const RESERVED_ROOT = new Set([
+  "admin", "api", "uploads", "author", "category", "review", "info", "guide", "deals", "search", "team",
+  "newsletter", "how-we-test", "sitemap", "robots", "favicon", "icon", "apple-icon", "_next",
+]);
+
 export const guideSchema = z.object({
-  slug,
+  slug: slug.refine((s) => !RESERVED_ROOT.has(s), "This slug is reserved by a site page; pick another"),
   type: z.enum(POST_TYPES).default("BUYING_GUIDE"),
   title: z.string().trim().min(1),
   seoTitle: optStr,

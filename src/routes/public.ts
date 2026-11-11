@@ -199,7 +199,7 @@ publicRouter.get("/search", async (req, res) => {
   const like = { contains: q, mode: "insensitive" as const };
   if (!q) {
     const guides = await prisma.guide.findMany({ where: published, include: guideCardInclude, orderBy: { sortOrder: "asc" } });
-    res.json({ q, results: guides.map((g) => ({ type: "Buying guide", title: g.title, meta: `${g.category.name} · ${g.modelsTested} models tested`, href: `/guide/${g.slug}` })) });
+    res.json({ q, results: guides.map((g) => ({ type: "Buying guide", title: g.title, meta: `${g.category.name} · ${g.modelsTested} models tested`, href: `/${g.slug}` })) });
     return;
   }
   const [guides, products, authors, categories] = await Promise.all([
@@ -211,7 +211,7 @@ publicRouter.get("/search", async (req, res) => {
   res.json({
     q,
     results: [
-      ...guides.map((g) => ({ type: "Buying guide", title: g.title, meta: `${g.category.name} · ${g.modelsTested} models tested`, href: `/guide/${g.slug}` })),
+      ...guides.map((g) => ({ type: "Buying guide", title: g.title, meta: `${g.category.name} · ${g.modelsTested} models tested`, href: `/${g.slug}` })),
       ...products.map((p) => ({ type: "Review", title: `${p.name} review`, meta: `${p.label} in ${p.guide.title.toLowerCase()} · ${p.score.toFixed(1)}`, href: `/review/${p.slug}` })),
       ...authors.map((a) => ({ type: "Editorial team", title: a.name, meta: a.role, href: `/author/${a.slug}` })),
       ...categories.map((c) => ({ type: "Category", title: c.name, meta: c.intro, href: `/category/${c.slug}` })),

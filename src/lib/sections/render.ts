@@ -42,7 +42,7 @@ export const TYPE_LABEL: Record<string, string> = {
   COMPARISON: "Comparison",
   INFO_ARTICLE: "Explained",
 };
-export const guidePath = (g: { slug: string }) => `/guide/${g.slug}`;
+export const guidePath = (g: { slug: string }) => `/${g.slug}`;
 const longDate = (d: Date | string | null | undefined) =>
   d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }) : "";
 
