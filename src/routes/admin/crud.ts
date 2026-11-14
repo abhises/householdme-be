@@ -23,6 +23,8 @@ interface CrudOptions {
   searchFields?: string[];
   /** Extra where filters from query string, e.g. { guideId: "guideId" } */
   filters?: Record<string, string>;
+  /** Integer filters from query string, e.g. { year: "year" } for ?year=2026 */
+  intFilters?: Record<string, string>;
   /** Boolean filters from query string, e.g. { published: "published" } for ?published=true */
   boolFilters?: Record<string, string>;
   /** Runs after create/update; may return a reloaded item (e.g. after deriving stored fields) */
@@ -54,6 +56,10 @@ export function crudRouter(opts: CrudOptions) {
     for (const [param, field] of Object.entries(opts.filters ?? {})) {
       const v = req.query[param];
       if (typeof v === "string" && v) where[field] = v;
+    }
+    for (const [param, field] of Object.entries(opts.intFilters ?? {})) {
+      const v = Number(req.query[param]);
+      if (req.query[param] && Number.isInteger(v)) where[field] = v;
     }
     for (const [param, field] of Object.entries(opts.boolFilters ?? {})) {
       const v = req.query[param];

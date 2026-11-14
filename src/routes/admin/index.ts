@@ -18,7 +18,7 @@ async function isPrivateHost(host: string) {
 }
 import { getAllSettings, getSetting, isSettingKey, SETTING_DEFAULTS } from "../../lib/settings.js";
 import { makeKey, storage } from "../../storage/index.js";
-import { authorSchema, categorySchema, dealSchema, guideSchema, infoPageSchema, productSchema } from "../../schemas/content.js";
+import { authorSchema, awardSchema, categorySchema, cleaningServiceSchema, dealSchema, guideSchema, infoPageSchema, productSchema } from "../../schemas/content.js";
 import { requireAdmin } from "../../middleware/auth.js";
 import { crudRouter } from "./crud.js";
 import { postContext, renderDoc, rerenderGuide, sectionsDocSchema } from "../../lib/sections/render.js";
@@ -35,7 +35,7 @@ adminRouter.use(requireAdmin);
 
 // ---- Dashboard ----
 adminRouter.get("/stats", async (_req, res) => {
-  const [guides, products, categories, authors, deals, subscribers, media, infoPages, recentGuides, recentSubscribers] =
+  const [guides, products, categories, authors, deals, subscribers, media, infoPages, awards, recentGuides, recentSubscribers] =
     await Promise.all([
       prisma.guide.count(),
       prisma.product.count(),
@@ -45,11 +45,12 @@ adminRouter.get("/stats", async (_req, res) => {
       prisma.subscriber.count(),
       prisma.media.count(),
       prisma.infoPage.count(),
+      prisma.award.count(),
       prisma.guide.findMany({ orderBy: { updatedAt: "desc" }, take: 5, select: { id: true, title: true, slug: true, updatedAt: true } }),
       prisma.subscriber.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
     ]);
   res.json({
-    counts: { guides, products, categories, authors, deals, subscribers, media, infoPages },
+    counts: { guides, products, categories, authors, deals, subscribers, media, infoPages, awards },
     recentGuides,
     recentSubscribers,
     storage: storage.name,
@@ -175,6 +176,53 @@ adminRouter.use(
     schema: infoPageSchema,
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
     searchFields: ["title", "slug"],
+  }),
+);
+
+// ---- Local awards ----
+adminRouter.use(
+  "/cleaning-services",
+  crudRouter({
+    name: "Cleaning service",
+    delegate: prisma.cleaningService,
+    schema: cleaningServiceSchema,
+    include: { awards: { select: { id: true, year: true, title: true, city: true, state: true }, orderBy: { year: "desc" } } },
+    orderBy: [{ state: "asc" }, { city: "asc" }, { name: "asc" }],
+    searchFields: ["name", "city", "email", "slug"],
+    filters: { state: "state", city: "city" },
+  }),
+);
+
+// One award per business per city and year: say so plainly instead of the generic unique-constraint error
+adminRouter.use("/awards", async (req, _res, next) => {
+  const isCreate = req.method === "POST" && req.path === "/";
+  const isReplace = req.method === "PUT" && /^\/[^/]+$/.test(req.path);
+  if (!isCreate && !isReplace) return next();
+  const b = req.body ?? {};
+  const year = Number(b.year);
+  const state = typeof b.state === "string" ? b.state.trim().toUpperCase() : "";
+  const city = typeof b.city === "string" ? b.city.trim() : "";
+  if (typeof b.serviceId !== "string" || !Number.isInteger(year) || !state || !city) return next();
+  const other = await prisma.award.findFirst({
+    where: { serviceId: b.serviceId, year, state, city, ...(isReplace ? { id: { not: req.path.slice(1) } } : {}) },
+    select: { title: true },
+  });
+  if (other) throw new HttpError(409, `This business already has an award in ${city}, ${state} for ${year} ("${other.title}"). Edit that award instead.`);
+  next();
+});
+
+adminRouter.use(
+  "/awards",
+  crudRouter({
+    name: "Award",
+    delegate: prisma.award,
+    schema: awardSchema,
+    include: { service: { select: { id: true, name: true, slug: true, city: true, state: true, email: true, logoUrl: true } } },
+    orderBy: [{ year: "desc" }, { state: "asc" }, { city: "asc" }, { rank: "asc" }],
+    searchFields: ["title", "city"],
+    filters: { state: "state", city: "city", serviceId: "serviceId" },
+    intFilters: { year: "year" },
+    boolFilters: { published: "published" },
   }),
 );
 

@@ -159,3 +159,40 @@ export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
 });
+
+// ---- Local awards ----
+const stateCode = z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Use the two-letter state code, e.g. OR");
+const optNum = (s: z.ZodNumber) => z.preprocess((v) => (v === "" || v === undefined ? null : v), z.coerce.number().pipe(s).nullable());
+
+export const cleaningServiceSchema = z.object({
+  slug,
+  name: z.string().trim().min(1, "Name is required"),
+  city: z.string().trim().min(1, "City is required"),
+  state: stateCode,
+  address: str,
+  phone: str,
+  email: z.string().trim().refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Not a valid email").default(""),
+  website: urlOpt,
+  logoUrl: optStr,
+  googleRating: optNum(z.number().min(0).max(5)),
+  googleReviews: optNum(z.number().int().min(0)),
+  yelpRating: optNum(z.number().min(0).max(5)),
+  yelpReviews: optNum(z.number().int().min(0)),
+  services: strList,
+  licensed: z.boolean().default(false),
+  insured: z.boolean().default(false),
+  backgroundChecked: z.boolean().default(false),
+  notes: str,
+});
+
+export const awardSchema = z.object({
+  serviceId: z.string().min(1, "Choose a cleaning service"),
+  year: z.coerce.number().int().min(2000).max(2100),
+  city: z.string().trim().min(1, "City is required"),
+  state: stateCode,
+  title: z.string().trim().min(1, "Award title is required"),
+  rank: z.coerce.number().int().min(1).default(1),
+  score: optNum(z.number().min(0).max(10)),
+  whyItWon: str,
+  published: z.boolean().default(true),
+});
